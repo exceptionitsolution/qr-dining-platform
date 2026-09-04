@@ -1,0 +1,219 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #0C0A09;
+    --text-primary: #FFFFFF;
+    --text-secondary: #D1D5DB;
+    --border-gold: rgba(229, 169, 60, 0.25);
+    --gold-primary: #E5A93C;
+    --gold-bright: #FBBF24;
+  }
+
+  html.light, body.light-theme {
+    --bg-main: #FBF8F3;
+    --text-primary: #18120E;
+    --text-secondary: #5C5248;
+    --border-gold: rgba(197, 134, 37, 0.3);
+    --gold-primary: #A65D03;
+    --gold-bright: #874900;
+    background-color: #FBF8F3 !important;
+    color: #18120E !important;
+  }
+
+  html.dark, body.dark-theme {
+    --bg-main: #0C0A09;
+    --text-primary: #FFFFFF;
+    --text-secondary: #D1D5DB;
+    --border-gold: rgba(229, 169, 60, 0.25);
+    --gold-primary: #E5A93C;
+    --gold-bright: #FBBF24;
+    background-color: #0C0A09 !important;
+    color: #FFFFFF !important;
+  }
+
+  html, body {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.01em;
+    min-height: 100vh;
+    transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+
+  .font-serif {
+    font-family: 'Cormorant Garamond', serif;
+  }
+}
+
+/* Ambient Radial Golden Lighting (Dark vs Light) */
+.ambient-gold-bg {
+  background: 
+    radial-gradient(circle at 50% 0%, rgba(229, 169, 60, 0.16) 0%, rgba(12, 10, 9, 0) 60%),
+    radial-gradient(circle at 10% 40%, rgba(200, 80, 40, 0.08) 0%, rgba(12, 10, 9, 0) 50%),
+    radial-gradient(circle at 90% 80%, rgba(229, 169, 60, 0.06) 0%, rgba(12, 10, 9, 0) 60%),
+    #0C0A09;
+}
+
+html.light .ambient-gold-bg,
+.light .ambient-gold-bg {
+  background: 
+    radial-gradient(circle at 50% -5%, rgba(229, 169, 60, 0.22) 0%, rgba(251, 248, 243, 0) 65%),
+    radial-gradient(circle at 10% 35%, rgba(217, 70, 37, 0.09) 0%, rgba(251, 248, 243, 0) 50%),
+    radial-gradient(circle at 90% 75%, rgba(229, 169, 60, 0.12) 0%, rgba(251, 248, 243, 0) 60%),
+    #FBF8F3 !important;
+}
+
+/* Luxury Card - Haute Couture Finish for both Light & Dark */
+.luxury-card {
+  background: linear-gradient(145deg, #1C1815 0%, #14100E 100%);
+  border: 1px solid rgba(229, 169, 60, 0.22);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.luxury-card:hover {
+  border-color: rgba(229, 169, 60, 0.5);
+  box-shadow: 0 22px 45px -8px rgba(0, 0, 0, 0.85), 0 0 25px -4px rgba(229, 169, 60, 0.25);
+}
+
+html.light .luxury-card,
+.light .luxury-card {
+  background: linear-gradient(145deg, #FFFFFF 0%, #FAF5EB 100%) !important;
+  border: 1px solid rgba(197, 134, 37, 0.3) !important;
+  box-shadow: 0 16px 36px -12px rgba(180, 115, 30, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 0 1px 1px rgba(197, 134, 37, 0.08) !important;
+}
+
+html.light .luxury-card:hover,
+.light .luxury-card:hover {
+  border-color: rgba(197, 134, 37, 0.65) !important;
+  box-shadow: 0 22px 45px -8px rgba(180, 115, 30, 0.22), 0 0 25px -4px rgba(229, 169, 60, 0.25), inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+}
+
+/* Frosted Pearl & Obsidian Glass Navigation Bar */
+.frosted-dark-nav {
+  background: rgba(12, 10, 9, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-bottom: 1px solid rgba(229, 169, 60, 0.2);
+}
+
+html.light .frosted-dark-nav,
+.light .frosted-dark-nav {
+  background: rgba(251, 248, 243, 0.9) !important;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-bottom: 1px solid rgba(197, 134, 37, 0.25) !important;
+  box-shadow: 0 4px 20px -4px rgba(180, 115, 30, 0.08) !important;
+}
+
+/* Frosted Drawer */
+.frosted-drawer {
+  background: rgba(15, 12, 10, 0.96);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-left: 1px solid rgba(229, 169, 60, 0.25);
+}
+
+html.light .frosted-drawer,
+.light .frosted-drawer {
+  background: rgba(255, 255, 255, 0.97) !important;
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-left: 1px solid rgba(197, 134, 37, 0.28) !important;
+  box-shadow: -10px 0 35px -5px rgba(180, 115, 30, 0.15) !important;
+}
+
+/* Metallic Molten Gold Gradient Button */
+.gold-btn {
+  background: linear-gradient(135deg, #F8DC9C 0%, #E5A93C 45%, #C28222 100%);
+  color: #120D06 !important;
+  font-weight: 800;
+  box-shadow: 0 4px 20px rgba(229, 169, 60, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gold-btn:hover {
+  background: linear-gradient(135deg, #FFF0C2 0%, #F0B84D 45%, #D4902A 100%);
+  box-shadow: 0 8px 28px rgba(229, 169, 60, 0.55), 0 0 18px rgba(248, 220, 156, 0.45);
+  transform: translateY(-1.5px);
+}
+
+.gold-btn:active {
+  transform: scale(0.97);
+}
+
+/* Golden text gradient */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #FFF1C5 0%, #F0C068 50%, #C98A28 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+html.light .text-gold-gradient,
+.light .text-gold-gradient {
+  background: linear-gradient(135deg, #965A04 0%, #C88218 50%, #874900 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(229, 169, 60, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 169, 60, 0.6);
+}
+
+/* Shimmer animation */
+@keyframes gold-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.gold-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.gold-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(248, 220, 156, 0.35), transparent);
+  animation: gold-shimmer 3s infinite;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-card {
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+}
