@@ -18,6 +18,7 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
@@ -259,11 +260,7 @@ export const MenuManager = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item) => {
-            const img = item.image_url
-              ? item.image_url.startsWith('http') || item.image_url.startsWith('/')
-                ? item.image_url
-                : `/uploads/${item.image_url}`
-              : DEFAULT_IMAGE;
+            const img = getImageUrl(item.image_url) || DEFAULT_IMAGE;
 
             return (
               <div

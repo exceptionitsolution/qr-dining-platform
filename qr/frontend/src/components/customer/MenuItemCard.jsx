@@ -3,6 +3,7 @@ import { Plus, Minus } from 'lucide-react';
 import { VegBadge, BestsellerBadge, SpiceLevelBadge } from '../common/Badge';
 import { useCart } from '../../context/CartContext';
 import { motion } from 'framer-motion';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
@@ -26,11 +27,7 @@ export const MenuItemCard = ({ item, onSelectDetail }) => {
     updateQty(item.id, -1);
   };
 
-  const imageUrl = item.image_url
-    ? item.image_url.startsWith('http') || item.image_url.startsWith('/')
-      ? item.image_url
-      : `/uploads/${item.image_url}`
-    : DEFAULT_IMAGE;
+  const imageUrl = getImageUrl(item.image_url) || DEFAULT_IMAGE;
 
   // Sensory culinary flavor notes based on category & name
   const getFlavorNote = () => {

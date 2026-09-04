@@ -3,6 +3,7 @@ import { Modal } from '../common/Modal';
 import { VegBadge, BestsellerBadge, SpiceLevelBadge } from '../common/Badge';
 import { useCart } from '../../context/CartContext';
 import { Plus, Minus, ShoppingBag, MessageSquare, Sparkles, X } from 'lucide-react';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
 
@@ -13,11 +14,7 @@ export const ItemDetailModal = ({ item, isOpen, onClose, allItems = [] }) => {
 
   if (!item) return null;
 
-  const imageUrl = item.image_url
-    ? item.image_url.startsWith('http') || item.image_url.startsWith('/')
-      ? item.image_url
-      : `/uploads/${item.image_url}`
-    : DEFAULT_IMAGE;
+  const imageUrl = getImageUrl(item.image_url) || DEFAULT_IMAGE;
 
   const handleAddToCart = () => {
     addToCart(item, quantity, note);

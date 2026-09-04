@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles, Plus, Check } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { VegBadge } from '../common/Badge';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
 
@@ -32,11 +33,7 @@ export const ChefHighlights = ({ items = [], onSelectDetail }) => {
       <div className="flex gap-3.5 sm:gap-4 overflow-x-auto no-scrollbar pb-2 w-full max-w-full">
         {highlights.map((item) => {
           const inCart = cart.some((i) => i.item.id === item.id);
-          const img = item.image_url
-            ? item.image_url.startsWith('http') || item.image_url.startsWith('/')
-              ? item.image_url
-              : `/uploads/${item.image_url}`
-            : DEFAULT_IMAGE;
+          const img = getImageUrl(item.image_url) || DEFAULT_IMAGE;
 
           return (
             <div
