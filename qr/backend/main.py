@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -343,9 +343,9 @@ def get_admin_orders(
     params = []
 
     if filter == "today":
-        today_prefix = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        query += " AND created_at LIKE ?"
-        params.append(f"{today_prefix}%")
+        today_start = datetime.now(timezone.utc).strftime("%Y-%m-%d") + "T00:00:00Z"
+        query += " AND created_at >= ?"
+        params.append(today_start)
     
     if status_filter:
         query += " AND status = ?"
@@ -376,19 +376,16 @@ def update_order_status(
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
-    order = cursor.fetchone()
-    if not order:
+    if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")
 
     cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (req.status, order_id))
     conn.commit()
-    
-    cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
-    updated = cursor.fetchone()
-    conn.close()
 
-    res = dict(updated)
+    cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,))
+    res = dict(cursor.fetchone())
+    conn.close()
     res["items"] = json.loads(res["items_json"])
     return res
 
@@ -399,17 +396,31 @@ def get_admin_stats(
 ):
     conn = get_db_connection()
     cursor = conn.cursor()
+    now = datetime.now(timezone.utc)
     
     # Query orders based on timeframe
     if period == "today":
-        today_prefix = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        cursor.execute("SELECT * FROM orders WHERE created_at LIKE ?", (f"{today_prefix}%",))
+        today_start = now.strftime("%Y-%m-%d") + "T00:00:00Z"
+        cursor.execute("SELECT * FROM orders WHERE created_at >= ? ORDER BY created_at DESC", (today_start,))
+    elif period == "yesterday":
+        yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        start_str = yesterday_str + "T00:00:00Z"
+        end_str = now.strftime("%Y-%m-%d") + "T00:00:00Z"
+        cursor.execute("SELECT * FROM orders WHERE created_at >= ? AND created_at < ? ORDER BY created_at DESC", (start_str, end_str))
     elif period == "week":
-        cursor.execute("SELECT * FROM orders ORDER BY created_at DESC LIMIT 200")
+        week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d") + "T00:00:00Z"
+        cursor.execute("SELECT * FROM orders WHERE created_at >= ? ORDER BY created_at DESC", (week_ago,))
+    elif period == "month":
+        month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d") + "T00:00:00Z"
+        cursor.execute("SELECT * FROM orders WHERE created_at >= ? ORDER BY created_at DESC", (month_ago,))
     else:
         cursor.execute("SELECT * FROM orders ORDER BY created_at DESC")
         
     orders_list = [dict(r) for r in cursor.fetchall()]
+
+    # Also fetch all orders to compute historical daily and monthly trends
+    cursor.execute("SELECT id, created_at, total, status, payment_mode FROM orders ORDER BY created_at DESC LIMIT 500")
+    all_recent_orders = [dict(r) for r in cursor.fetchall()]
 
     # Fetch reviews for customer satisfaction metric
     cursor.execute("SELECT * FROM reviews")
@@ -425,6 +436,49 @@ def get_admin_stats(
     online_rev = sum(o["total"] for o in orders_list if o["payment_mode"] == "online" and o["status"] != "cancelled")
     total_rev = cod_rev + online_rev
     aov = (total_rev / total_orders) if total_orders > 0 else 0.0
+
+    # Daily breakdown (Last 14 days)
+    daily_map = {}
+    for o in all_recent_orders:
+        created = o.get("created_at", "")
+        if len(created) >= 10:
+            date_key = created[:10]
+            if date_key not in daily_map:
+                daily_map[date_key] = {"date": date_key, "total": 0.0, "orders": 0, "completed": 0, "cod": 0.0, "online": 0.0}
+            daily_map[date_key]["orders"] += 1
+            if o.get("status") == "completed":
+                daily_map[date_key]["completed"] += 1
+            if o.get("status") != "cancelled":
+                amt = float(o.get("total", 0.0))
+                daily_map[date_key]["total"] += amt
+                if o.get("payment_mode") == "online":
+                    daily_map[date_key]["online"] += amt
+                else:
+                    daily_map[date_key]["cod"] += amt
+
+    daily_breakdown = sorted(daily_map.values(), key=lambda x: x["date"], reverse=True)[:14]
+    for d in daily_breakdown:
+        d["total"] = round(d["total"], 2)
+        d["cod"] = round(d["cod"], 2)
+        d["online"] = round(d["online"], 2)
+
+    # Monthly breakdown (Last 6 months)
+    monthly_map = {}
+    for o in all_recent_orders:
+        created = o.get("created_at", "")
+        if len(created) >= 7:
+            month_key = created[:7]
+            if month_key not in monthly_map:
+                monthly_map[month_key] = {"month": month_key, "total": 0.0, "orders": 0, "completed": 0}
+            monthly_map[month_key]["orders"] += 1
+            if o.get("status") == "completed":
+                monthly_map[month_key]["completed"] += 1
+            if o.get("status") != "cancelled":
+                monthly_map[month_key]["total"] += float(o.get("total", 0.0))
+
+    monthly_breakdown = sorted(monthly_map.values(), key=lambda x: x["month"], reverse=True)[:6]
+    for m in monthly_breakdown:
+        m["total"] = round(m["total"], 2)
 
     # Dish popularity breakdown from items_json
     dish_counts = {}
@@ -479,6 +533,8 @@ def get_admin_stats(
         "top_dishes": top_dishes,
         "top_tables": top_tables,
         "hourly_trends": hour_counts,
+        "daily_breakdown": daily_breakdown,
+        "monthly_breakdown": monthly_breakdown,
         "avg_rating": round(avg_rating, 1),
         "total_reviews": len(reviews_list)
     }

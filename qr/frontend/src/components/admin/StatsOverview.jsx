@@ -42,7 +42,17 @@ export const StatsOverview = () => {
 
   const cards = [
     {
-      label: `${period === 'today' ? "Today's" : period === 'week' ? 'Weekly' : 'All-Time'} Revenue`,
+      label: `${
+        period === 'today'
+          ? "Today's"
+          : period === 'yesterday'
+          ? "Yesterday's"
+          : period === 'week'
+          ? '7-Day'
+          : period === 'month'
+          ? '30-Day'
+          : 'All-Time'
+      } Revenue`,
       value: `₹${Math.round(stats.total_revenue || 0)}`,
       sub: `COD: ₹${Math.round(stats.cod_revenue || 0)} | Online: ₹${Math.round(stats.online_revenue || 0)}`,
       icon: TrendingUp,
@@ -81,7 +91,7 @@ export const StatsOverview = () => {
     <div className="space-y-6">
       
       {/* Top Header & Period Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 luxury-card p-6 rounded-3xl">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 luxury-card p-6 rounded-3xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2.5 h-2.5 rounded-full bg-[#E5A93C] shadow-[0_0_10px_rgba(229,169,60,0.8)] animate-pulse" />
@@ -90,24 +100,26 @@ export const StatsOverview = () => {
             </h3>
           </div>
           <p className="text-xs text-stone-600 dark:text-stone-400 font-medium">
-            Real-time insights on revenue streams, peak dining hours, and bestsellers.
+            Real-time insights on revenue streams, peak dining hours, bestsellers, and historical trends.
           </p>
         </div>
 
         {/* Timeframe Selector */}
-        <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800/80 p-1.5 rounded-2xl border border-stone-200 dark:border-stone-700/80 self-start sm:self-auto shadow-inner">
+        <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-stone-800/80 p-1.5 rounded-2xl border border-stone-200 dark:border-stone-700/80 self-start lg:self-auto shadow-inner">
           {[
             { id: 'today', label: 'Today' },
-            { id: 'week', label: 'This Week' },
+            { id: 'yesterday', label: 'Yesterday' },
+            { id: 'week', label: 'Past 7 Days' },
+            { id: 'month', label: 'Past 30 Days' },
             { id: 'all', label: 'All Time' },
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setPeriod(t.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all ${
                 period === t.id
-                  ? 'gold-btn'
-                  : 'text-stone-700 dark:text-stone-300 hover:text-stone-950 dark:hover:text-white'
+                  ? 'gold-btn shadow-sm'
+                  : 'text-stone-700 dark:text-stone-300 hover:text-stone-950 dark:hover:text-white hover:bg-stone-200/60 dark:hover:bg-stone-700/60'
               }`}
             >
               {t.label}
@@ -259,6 +271,97 @@ export const StatsOverview = () => {
                 <div className="text-base sm:text-lg font-black text-stone-900 dark:text-white">₹{Math.round(stats.online_revenue || 0)}</div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Per-Day & Monthly Historical Performance Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Daily Breakdown (Past 14 Days) */}
+        <div className="lg:col-span-2 luxury-card rounded-3xl p-6 sm:p-7 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-display font-black text-lg text-stone-900 dark:text-white">Daily Revenue & Orders Log</h4>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Day-by-day sales record permanently saved in Supabase</p>
+            </div>
+            <span className="text-xs font-mono font-bold text-[#A65D03] dark:text-[#FBBF24] bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
+              Last 14 Days
+            </span>
+          </div>
+
+          <div className="overflow-x-auto no-scrollbar">
+            {(!stats.daily_breakdown || stats.daily_breakdown.length === 0) ? (
+              <div className="py-8 text-center text-xs text-stone-500 font-medium">
+                No orders recorded yet. As customers order, daily sales will track here automatically!
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400 font-black uppercase tracking-wider">
+                    <th className="pb-3">Date</th>
+                    <th className="pb-3 text-center">Orders</th>
+                    <th className="pb-3 text-center">Served</th>
+                    <th className="pb-3 text-right">Cash / Desk</th>
+                    <th className="pb-3 text-right">Online</th>
+                    <th className="pb-3 text-right">Total Sales</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800/60 font-medium">
+                  {stats.daily_breakdown.map((d, i) => (
+                    <tr key={i} className="hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
+                      <td className="py-3 font-bold text-stone-900 dark:text-white font-mono">{d.date}</td>
+                      <td className="py-3 text-center font-bold text-stone-700 dark:text-stone-300">
+                        <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
+                          {d.orders}
+                        </span>
+                      </td>
+                      <td className="py-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">
+                        {d.completed}
+                      </td>
+                      <td className="py-3 text-right text-stone-600 dark:text-stone-400">₹{Math.round(d.cod || 0)}</td>
+                      <td className="py-3 text-right text-stone-600 dark:text-stone-400">₹{Math.round(d.online || 0)}</td>
+                      <td className="py-3 text-right font-black text-stone-900 dark:text-white text-sm">
+                        ₹{Math.round(d.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Monthly Summary */}
+        <div className="luxury-card rounded-3xl p-6 sm:p-7 space-y-4">
+          <div>
+            <h4 className="font-display font-black text-lg text-stone-900 dark:text-white">Monthly Summary</h4>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Historical monthly performance</p>
+          </div>
+
+          <div className="space-y-3">
+            {(!stats.monthly_breakdown || stats.monthly_breakdown.length === 0) ? (
+              <div className="py-8 text-center text-xs text-stone-500 font-medium">
+                No monthly data yet.
+              </div>
+            ) : (
+              stats.monthly_breakdown.map((m, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white dark:bg-[#1E1916] p-3.5 rounded-2xl border border-stone-200 dark:border-stone-700/60 shadow-sm flex items-center justify-between"
+                >
+                  <div>
+                    <span className="font-black text-xs text-stone-900 dark:text-white font-mono">{m.month}</span>
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400">{m.orders} orders placed</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-sm text-[#A65D03] dark:text-[#FBBF24]">
+                      ₹{Math.round(m.total)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
