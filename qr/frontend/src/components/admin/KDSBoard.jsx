@@ -91,6 +91,7 @@ export const KDSBoard = ({ audioEnabled }) => {
   const pendingCount = orders.filter((o) => o.status === 'pending').length;
   const preparingCount = orders.filter((o) => o.status === 'preparing').length;
   const readyCount = orders.filter((o) => o.status === 'ready').length;
+  const completedCount = orders.filter((o) => o.status === 'completed').length;
 
   return (
     <div className="space-y-6">
@@ -153,6 +154,20 @@ export const KDSBoard = ({ audioEnabled }) => {
             <span>Ready</span>
             <span className="bg-black/20 px-1.5 py-0.5 rounded-md text-[10px] font-black">
               {readyCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('completed')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 ${
+              statusFilter === 'completed'
+                ? 'bg-purple-600 text-white font-black shadow-xs'
+                : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700'
+            }`}
+          >
+            <span>Delivered</span>
+            <span className="bg-black/20 px-1.5 py-0.5 rounded-md text-[10px] font-black">
+              {completedCount}
             </span>
           </button>
 

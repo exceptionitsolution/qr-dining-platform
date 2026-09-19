@@ -1,25 +1,163 @@
-import sqlite3
 import os
 import json
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "zaika.db"))
 
+def get_database_url():
+    return os.environ.get("DATABASE_URL", "").strip()
+
+def is_postgres():
+    url = get_database_url()
+    return url.startswith("postgresql://") or url.startswith("postgres://")
+
+def _normalize_row(row):
+    if row is None:
+        return None
+    d = dict(row)
+    for k, v in d.items():
+        if isinstance(v, Decimal):
+            d[k] = float(v)
+    if "items_json" in d and not isinstance(d["items_json"], str):
+        d["items_json"] = json.dumps(d["items_json"])
+    return d
+
+class PostgresCursorWrapper:
+    def __init__(self, raw_cursor):
+        self._cursor = raw_cursor
+
+    def execute(self, query, params=None):
+        if "?" in query:
+            query = query.replace("?", "%s")
+        if params is not None:
+            clean_params = tuple(
+                json.dumps(p) if isinstance(p, (dict, list)) else p
+                for p in params
+            )
+            return self._cursor.execute(query, clean_params)
+        return self._cursor.execute(query)
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return _normalize_row(row)
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [_normalize_row(r) for r in rows]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield _normalize_row(row)
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+class PostgresConnWrapper:
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
+
+    def cursor(self):
+        from psycopg2.extras import RealDictCursor
+        return PostgresCursorWrapper(self._conn.cursor(cursor_factory=RealDictCursor))
+
+    def commit(self):
+        return self._conn.commit()
+
+    def rollback(self):
+        return self._conn.rollback()
+
+    def close(self):
+        return self._conn.close()
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if is_postgres():
+        import psycopg2
+        pg_url = get_database_url()
+        if pg_url.startswith("postgres://"):
+            pg_url = "postgresql://" + pg_url[len("postgres://"):]
+        raw_conn = psycopg2.connect(pg_url)
+        return PostgresConnWrapper(raw_conn)
+    else:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
 
 def init_db():
+    if is_postgres():
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS menu_items (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            category TEXT NOT NULL,
+            price NUMERIC(10, 2) NOT NULL,
+            is_veg INTEGER NOT NULL DEFAULT 1,
+            image_url TEXT,
+            available INTEGER NOT NULL DEFAULT 1,
+            is_bestseller INTEGER NOT NULL DEFAULT 0,
+            spice_level INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            token TEXT NOT NULL,
+            table_id TEXT NOT NULL,
+            customer_name TEXT NOT NULL DEFAULT 'Guest',
+            phone TEXT DEFAULT '',
+            payment_mode TEXT NOT NULL,
+            payment_status TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            instructions TEXT DEFAULT '',
+            total NUMERIC(10, 2) NOT NULL,
+            items_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS reviews (
+            id TEXT PRIMARY KEY,
+            order_id TEXT NOT NULL,
+            rating INTEGER NOT NULL,
+            comment TEXT,
+            token TEXT,
+            table_id TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS otp_sessions (
+            phone TEXT PRIMARY KEY,
+            otp TEXT NOT NULL,
+            otp_token TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        """)
+        conn.commit()
+        conn.close()
+        return
+
     try:
         from migrate import run_migrations
         run_migrations()
-    except Exception as e:
-        # Fallback inline initialization in case migrate cannot be imported directly
-        conn = get_db_connection()
+    except Exception:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_users (
             id TEXT PRIMARY KEY,
@@ -27,9 +165,6 @@ def init_db():
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-        """)
-
-        cursor.execute("""
         CREATE TABLE IF NOT EXISTS menu_items (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -43,9 +178,6 @@ def init_db():
             spice_level INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL
         );
-        """)
-
-        cursor.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id TEXT PRIMARY KEY,
             token TEXT NOT NULL,
@@ -60,9 +192,6 @@ def init_db():
             items_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-        """)
-
-        cursor.execute("""
         CREATE TABLE IF NOT EXISTS reviews (
             id TEXT PRIMARY KEY,
             order_id TEXT NOT NULL,
@@ -72,24 +201,17 @@ def init_db():
             table_id TEXT,
             created_at TEXT NOT NULL
         );
-        """)
-
-        cursor.execute("""
         CREATE TABLE IF NOT EXISTS otp_sessions (
             phone TEXT PRIMARY KEY,
             otp TEXT NOT NULL,
             otp_token TEXT,
             created_at TEXT NOT NULL
         );
-        """)
-
-        cursor.execute("""
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
         """)
-
         conn.commit()
         conn.close()
 
@@ -101,18 +223,23 @@ def seed_db():
 
     # Seed Admin User if not exists
     cursor.execute("SELECT COUNT(*) as cnt FROM admin_users WHERE email = ?", ("admin@restaurant.com",))
-    if cursor.fetchone()["cnt"] == 0:
+    row = cursor.fetchone()
+    cnt = row["cnt"] if (row and "cnt" in row) else 0
+    if cnt == 0:
         admin_id = str(uuid.uuid4())
         pw_hash = hash_password("admin123")
         cursor.execute(
             "INSERT INTO admin_users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
             (admin_id, "admin@restaurant.com", pw_hash, datetime.now(timezone.utc).isoformat())
         )
+        conn.commit()
         print("Default admin created: admin@restaurant.com / admin123")
 
     # Seed initial menu items if table is empty
     cursor.execute("SELECT COUNT(*) as cnt FROM menu_items")
-    if cursor.fetchone()["cnt"] == 0:
+    row = cursor.fetchone()
+    cnt = row["cnt"] if (row and "cnt" in row) else 0
+    if cnt == 0:
         initial_items = [
             {
                 "id": "ee063aa1-36a9-493d-8070-d31b83c3279b",

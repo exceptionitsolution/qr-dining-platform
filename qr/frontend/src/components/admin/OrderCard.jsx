@@ -156,9 +156,17 @@ export const OrderCard = ({ order, onUpdateStatus, isUpdating }) => {
             </button>
           )}
 
-          {(order.status === 'completed' || order.status === 'cancelled') && (
-            <div className="w-full py-2 rounded-xl bg-stone-100 dark:bg-stone-800 text-center text-xs font-bold text-stone-500 dark:text-stone-400">
-              Archived Order
+          {order.status === 'completed' && (
+            <div className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-center text-xs font-black text-emerald-700 dark:text-emerald-400 flex items-center justify-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Delivered & Served ({order.table_id})</span>
+            </div>
+          )}
+
+          {order.status === 'cancelled' && (
+            <div className="w-full py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-center text-xs font-black text-rose-700 dark:text-rose-400 flex items-center justify-center gap-1.5">
+              <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span>Order Cancelled</span>
             </div>
           )}
         </div>
