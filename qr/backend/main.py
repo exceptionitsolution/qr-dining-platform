@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Query, st
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from database import init_db, seed_db, get_db_connection, DB_PATH
+from database import init_db, seed_db, get_db_connection, DB_PATH, is_postgres
 from auth import hash_password, verify_password, create_access_token, get_current_admin
 from otp_service import dispatch_otp
 from models import (
@@ -58,6 +58,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 def root():
     return {
         "message": "Zaika Restaurant QR Dine Backend API is running!",
+        "database": "supabase_postgres" if is_postgres() else "local_sqlite",
         "docs": "http://localhost:8000/docs",
         "frontend_menu": "http://localhost:3000/?table=4",
         "admin_panel": "http://localhost:3000/admin"
@@ -67,6 +68,7 @@ def root():
 def get_config():
     online_enabled = os.environ.get("RAZORPAY_KEY_ID") is not None and len(os.environ.get("RAZORPAY_KEY_ID", "")) > 0
     return {
+        "database": "supabase_postgres" if is_postgres() else "local_sqlite",
         "online_enabled": online_enabled,
         "razorpay_key_id": os.environ.get("RAZORPAY_KEY_ID", ""),
         "sms_provider": os.environ.get("FAST2SMS_API_KEY") and "fast2sms" or os.environ.get("TWILIO_ACCOUNT_SID") and "twilio" or "demo"

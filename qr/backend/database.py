@@ -76,12 +76,19 @@ class PostgresConnWrapper:
 
 def get_db_connection():
     if is_postgres():
-        import psycopg2
-        pg_url = get_database_url()
-        if pg_url.startswith("postgres://"):
-            pg_url = "postgresql://" + pg_url[len("postgres://"):]
-        raw_conn = psycopg2.connect(pg_url)
-        return PostgresConnWrapper(raw_conn)
+        try:
+            import psycopg2
+            pg_url = get_database_url()
+            if pg_url.startswith("postgres://"):
+                pg_url = "postgresql://" + pg_url[len("postgres://"):]
+            raw_conn = psycopg2.connect(pg_url, connect_timeout=5)
+            return PostgresConnWrapper(raw_conn)
+        except Exception as e:
+            print(f"[WARN] Supabase connection failed ({e}). Falling back to local SQLite.")
+            import sqlite3
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
     else:
         import sqlite3
         conn = sqlite3.connect(DB_PATH)
@@ -224,7 +231,7 @@ def seed_db():
     # Seed Admin User if not exists
     cursor.execute("SELECT COUNT(*) as cnt FROM admin_users WHERE email = ?", ("admin@restaurant.com",))
     row = cursor.fetchone()
-    cnt = row["cnt"] if (row and "cnt" in row) else 0
+    cnt = row["cnt"] if isinstance(row, dict) else (row[0] if row else 0)
     if cnt == 0:
         admin_id = str(uuid.uuid4())
         pw_hash = hash_password("admin123")
@@ -238,7 +245,7 @@ def seed_db():
     # Seed initial menu items if table is empty
     cursor.execute("SELECT COUNT(*) as cnt FROM menu_items")
     row = cursor.fetchone()
-    cnt = row["cnt"] if (row and "cnt" in row) else 0
+    cnt = row["cnt"] if isinstance(row, dict) else (row[0] if row else 0)
     if cnt == 0:
         initial_items = [
             {
