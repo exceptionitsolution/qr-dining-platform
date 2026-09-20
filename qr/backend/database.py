@@ -6,12 +6,18 @@ from decimal import Decimal
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "zaika.db"))
 
+_active_engine = "local_sqlite"
+
 def get_database_url():
     return os.environ.get("DATABASE_URL", "").strip()
 
-def is_postgres():
+def has_postgres_config():
     url = get_database_url()
     return url.startswith("postgresql://") or url.startswith("postgres://")
+
+def is_postgres():
+    global _active_engine
+    return _active_engine == "supabase_postgres"
 
 def _normalize_row(row):
     if row is None:
@@ -75,29 +81,33 @@ class PostgresConnWrapper:
         return getattr(self._conn, name)
 
 def get_db_connection():
-    if is_postgres():
+    global _active_engine
+    if has_postgres_config():
         try:
             import psycopg2
             pg_url = get_database_url()
             if pg_url.startswith("postgres://"):
                 pg_url = "postgresql://" + pg_url[len("postgres://"):]
             raw_conn = psycopg2.connect(pg_url, connect_timeout=5)
+            _active_engine = "supabase_postgres"
             return PostgresConnWrapper(raw_conn)
         except Exception as e:
             print(f"[WARN] Supabase connection failed ({e}). Falling back to local SQLite.")
+            _active_engine = "local_sqlite"
             import sqlite3
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             return conn
     else:
+        _active_engine = "local_sqlite"
         import sqlite3
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         return conn
 
 def init_db():
-    if is_postgres():
-        conn = get_db_connection()
+    conn = get_db_connection()
+    if isinstance(conn, PostgresConnWrapper):
         cursor = conn.cursor()
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS admin_users (
@@ -157,70 +167,70 @@ def init_db():
         conn.close()
         return
 
+    # Local SQLite Initialization
     try:
         from migrate import run_migrations
         run_migrations()
-    except Exception:
-        import sqlite3
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS admin_users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS menu_items (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            category TEXT NOT NULL,
-            price REAL NOT NULL,
-            is_veg INTEGER NOT NULL DEFAULT 1,
-            image_url TEXT,
-            available INTEGER NOT NULL DEFAULT 1,
-            is_bestseller INTEGER NOT NULL DEFAULT 0,
-            spice_level INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS orders (
-            id TEXT PRIMARY KEY,
-            token TEXT NOT NULL,
-            table_id TEXT NOT NULL,
-            customer_name TEXT NOT NULL DEFAULT 'Guest',
-            phone TEXT DEFAULT '',
-            payment_mode TEXT NOT NULL,
-            payment_status TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            instructions TEXT DEFAULT '',
-            total REAL NOT NULL,
-            items_json TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS reviews (
-            id TEXT PRIMARY KEY,
-            order_id TEXT NOT NULL,
-            rating INTEGER NOT NULL,
-            comment TEXT,
-            token TEXT,
-            table_id TEXT,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS otp_sessions (
-            phone TEXT PRIMARY KEY,
-            otp TEXT NOT NULL,
-            otp_token TEXT,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        """)
-        conn.commit()
-        conn.close()
+    except Exception as e:
+        print(f"[WARN] Migration check note: {e}")
+
+    cursor = conn.cursor()
+    cursor.executescript("""
+    CREATE TABLE IF NOT EXISTS admin_users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS menu_items (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT NOT NULL,
+        price REAL NOT NULL,
+        is_veg INTEGER NOT NULL DEFAULT 1,
+        image_url TEXT,
+        available INTEGER NOT NULL DEFAULT 1,
+        is_bestseller INTEGER NOT NULL DEFAULT 0,
+        spice_level INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
+        table_id TEXT NOT NULL,
+        customer_name TEXT NOT NULL DEFAULT 'Guest',
+        phone TEXT DEFAULT '',
+        payment_mode TEXT NOT NULL,
+        payment_status TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        instructions TEXT DEFAULT '',
+        total REAL NOT NULL,
+        items_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS reviews (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL,
+        rating INTEGER NOT NULL,
+        comment TEXT,
+        token TEXT,
+        table_id TEXT,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS otp_sessions (
+        phone TEXT PRIMARY KEY,
+        otp TEXT NOT NULL,
+        otp_token TEXT,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS config (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """)
+    conn.commit()
+    conn.close()
 
 def seed_db():
     from auth import hash_password
