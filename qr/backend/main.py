@@ -442,7 +442,10 @@ def get_admin_stats(
     # Daily breakdown (Last 14 days)
     daily_map = {}
     for o in all_recent_orders:
-        created = o.get("created_at", "")
+        created = o.get("created_at")
+        if hasattr(created, "isoformat"):
+            created = created.isoformat()
+        created = str(created or "")
         if len(created) >= 10:
             date_key = created[:10]
             if date_key not in daily_map:
@@ -467,7 +470,10 @@ def get_admin_stats(
     # Monthly breakdown (Last 6 months)
     monthly_map = {}
     for o in all_recent_orders:
-        created = o.get("created_at", "")
+        created = o.get("created_at")
+        if hasattr(created, "isoformat"):
+            created = created.isoformat()
+        created = str(created or "")
         if len(created) >= 7:
             month_key = created[:7]
             if month_key not in monthly_map:
@@ -493,7 +499,10 @@ def get_admin_stats(
         table_stats[tbl] = table_stats.get(tbl, 0) + o.get("total", 0)
 
         # Busy hours
-        created = o.get("created_at", "")
+        created = o.get("created_at")
+        if hasattr(created, "isoformat"):
+            created = created.isoformat()
+        created = str(created or "")
         if "T" in created:
             try:
                 hour_str = created.split("T")[1][:2] + ":00"

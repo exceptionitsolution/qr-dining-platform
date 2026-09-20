@@ -26,6 +26,8 @@ def _normalize_row(row):
     for k, v in d.items():
         if isinstance(v, Decimal):
             d[k] = float(v)
+        elif hasattr(v, "isoformat"):
+            d[k] = v.isoformat()
     if "items_json" in d and not isinstance(d["items_json"], str):
         d["items_json"] = json.dumps(d["items_json"])
     return d
